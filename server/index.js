@@ -1,54 +1,71 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import couchbase from "couchbase";
+import path from "path";
+import { fileURLToPath } from "url";
 
+dotenv.config();
 const app = express();
-app.use(express.json());
+
 app.use(cors());
+app.use(express.json());
 
-const port = process.env.PORT || 3001;
-
+// Couchbase connection
+let cluster, bucket, collection;
 const connectToCouchbase = async () => {
   try {
-    const cluster = await couchbase.connect(process.env.COUCHBASE_CONNSTR, {
+    cluster = await couchbase.connect(process.env.COUCHBASE_CONN_STR, {
       username: process.env.COUCHBASE_USERNAME,
       password: process.env.COUCHBASE_PASSWORD,
     });
-    const bucket = cluster.bucket(process.env.COUCHBASE_BUCKET);
-    const collection = bucket.defaultCollection();
+    bucket = cluster.bucket(process.env.COUCHBASE_BUCKET);
+    collection = bucket.defaultCollection();
     console.log("✅ Connected to Couchbase");
-    return collection;
   } catch (err) {
-    console.error("❌ Couchbase connection failed:", err);
-    process.exit(1);
+    console.error("❌ Couchbase connection error:", err);
   }
 };
+connectToCouchbase();
 
-let collectionPromise = connectToCouchbase();
-
-app.post("/api/punch", async (req, res) => {
+// API: Save punch-in
+app.post("/api/punchin", async (req, res) => {
   try {
-    const collection = await collectionPromise;
-    const punch = { time: req.body.time, createdAt: new Date().toISOString() };
-    const key = `punch_${Date.now()}`;
-    await collection.upsert(key, punch);
-    res.send({ success: true });
+    const { time } = req.body;
+    const id = `punch_${Date.now()}`;
+    await collection.insert(id, { time });
+    res.status(200).send({ success: true });
   } catch (err) {
-    console.error(err);
-    res.status(500).send({ error: "Failed to save punch" });
+    res.status(500).send({ error: err.message });
   }
 });
 
-app.get("/api/punches", async (req, res) => {
+// API: Get all punches
+app.get("/api/punchin", async (req, res) => {
   try {
-    const collection = await collectionPromise;
-    const result = await collection.getAllScopesAndCollections();
-    // Simplified retrieval for demo (you can later switch to N1QL query)
-    res.send([{ time: "Sample Data (DB Query to be extended)" }]);
+    const query = `SELECT META().id, time FROM \`${process.env.COUCHBASE_BUCKET}\``;
+    const result = await cluster.query(query);
+    res.status(200).send(result.rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).send({ error: "Failed to fetch punches" });
+    res.status(500).send({ error: err.message });
   }
 });
 
-app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
+// --- NEW: Serve React build files ---
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientBuildPath = path.join(__dirname, "../client/build");
+
+app.use(express.static(clientBuildPath));
+
+// Fallback: for any route not starting with /api, send React index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(clientBuildPath, "index.html"));
+});
+
+// --- Start server ---
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+});
+
