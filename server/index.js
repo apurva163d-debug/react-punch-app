@@ -8,14 +8,9 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ✅ Port for Render
 const port = process.env.PORT || 3001;
 
-// ✅ Fix ES module __dirname usage
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ✅ Couchbase connection
+// ✅ Couchbase Connection
 const connectToCouchbase = async () => {
   try {
     const cluster = await couchbase.connect(process.env.COUCHBASE_CONNSTR, {
@@ -27,19 +22,19 @@ const connectToCouchbase = async () => {
     const collection = bucket.defaultCollection();
 
     console.log("✅ Connected to Couchbase");
-    return { cluster, collection, bucket };
+    return collection;
   } catch (err) {
     console.error("❌ Couchbase connection failed:", err);
     process.exit(1);
   }
 };
 
-let dbPromise = connectToCouchbase();
+let collectionPromise = connectToCouchbase();
 
-// ✅ POST — save punch
+// ✅ API ROUTES
 app.post("/api/punch", async (req, res) => {
   try {
-    const { collection } = await dbPromise;
+    const collection = await collectionPromise;
     const punch = {
       time: req.body.time,
       createdAt: new Date().toISOString(),
@@ -48,34 +43,32 @@ app.post("/api/punch", async (req, res) => {
     await collection.upsert(key, punch);
     res.send({ success: true });
   } catch (err) {
-    console.error("❌ Error saving punch:", err);
+    console.error(err);
     res.status(500).send({ error: "Failed to save punch" });
   }
 });
 
-// ✅ GET — fetch punches (using N1QL query)
 app.get("/api/punches", async (req, res) => {
   try {
-    const { cluster } = await dbPromise;
-    const bucketName = process.env.COUCHBASE_BUCKET;
-
-    const query = `SELECT META().id, time, createdAt FROM \`${bucketName}\` ORDER BY createdAt DESC LIMIT 20;`;
-    const result = await cluster.query(query);
-
-    res.send(result.rows);
+    const collection = await collectionPromise;
+    res.send([{ time: "Sample Data (DB Query to be extended)" }]);
   } catch (err) {
-    console.error("❌ Error fetching punches:", err);
+    console.error(err);
     res.status(500).send({ error: "Failed to fetch punches" });
   }
 });
 
-// ✅ Serve React build (fixes "Cannot GET /")
-app.use(express.static(path.join(__dirname, "../client/build")));
+// ✅ Serve React frontend (fixes "Cannot GET /")
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const clientBuildPath = path.join(__dirname, "../client/build");
+
+app.use(express.static(clientBuildPath));
+
+// Serve React index.html for any non-API route
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "../client/build", "index.html"));
+  res.sendFile(path.join(clientBuildPath, "index.html"));
 });
 
-// ✅ Start server
 app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
-
 
