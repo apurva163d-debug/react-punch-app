@@ -8,24 +8,26 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// ✅ Define port for Render
+// ✅ Port for Render
 const port = process.env.PORT || 3001;
 
-// ✅ Fix __dirname in ES Modules
+// ✅ Fix ES module __dirname usage
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ✅ Connect to Couchbase
+// ✅ Couchbase connection
 const connectToCouchbase = async () => {
   try {
     const cluster = await couchbase.connect(process.env.COUCHBASE_CONNSTR, {
       username: process.env.COUCHBASE_USERNAME,
       password: process.env.COUCHBASE_PASSWORD,
     });
+
     const bucket = cluster.bucket(process.env.COUCHBASE_BUCKET);
     const collection = bucket.defaultCollection();
+
     console.log("✅ Connected to Couchbase");
-    return { cluster, collection };
+    return { cluster, collection, bucket };
   } catch (err) {
     console.error("❌ Couchbase connection failed:", err);
     process.exit(1);
@@ -34,7 +36,7 @@ const connectToCouchbase = async () => {
 
 let dbPromise = connectToCouchbase();
 
-// ✅ POST route — Save a punch
+// ✅ POST — save punch
 app.post("/api/punch", async (req, res) => {
   try {
     const { collection } = await dbPromise;
@@ -51,13 +53,13 @@ app.post("/api/punch", async (req, res) => {
   }
 });
 
-// ✅ GET route — Fetch all punches
+// ✅ GET — fetch punches (using N1QL query)
 app.get("/api/punches", async (req, res) => {
   try {
     const { cluster } = await dbPromise;
     const bucketName = process.env.COUCHBASE_BUCKET;
 
-    const query = `SELECT META().id, time, createdAt FROM \`${bucketName}\``;
+    const query = `SELECT META().id, time, createdAt FROM \`${bucketName}\` ORDER BY createdAt DESC LIMIT 20;`;
     const result = await cluster.query(query);
 
     res.send(result.rows);
@@ -67,7 +69,7 @@ app.get("/api/punches", async (req, res) => {
   }
 });
 
-// ✅ Serve React frontend build
+// ✅ Serve React build (fixes "Cannot GET /")
 app.use(express.static(path.join(__dirname, "../client/build")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/build", "index.html"));
