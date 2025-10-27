@@ -1,5 +1,5 @@
 {
-  "name": "punch-server",
+  "name": "react-punch-backend",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
@@ -7,7 +7,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "express": "^4.21.1",
     "cors": "^2.8.5",
     "couchbase": "^4.3.0"
   }
