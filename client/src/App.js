@@ -1,33 +1,30 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import "./App.css";
 
 function App() {
   const [punches, setPunches] = useState([]);
-  const [manualTime, setManualTime] = useState('');
-
-  const backendURL = process.env.REACT_APP_BACKEND_URL || window.location.origin;
+  const [loading, setLoading] = useState(false);
 
   const fetchPunches = async () => {
+    setLoading(true);
     try {
-      const res = await axios.get(`${backendURL}/api/punches`);
-      setPunches(res.data);
+      const res = await fetch("/api/punches");
+      const data = await res.json();
+      setPunches(data);
     } catch (err) {
-      console.error('Error fetching punches:', err);
+      console.error("Failed to fetch punches:", err);
     }
+    setLoading(false);
   };
 
-  const punchIn = async () => {
-    const now = new Date();
-    const localTime = now.toLocaleString();
-    const timeToSave = manualTime || localTime;
-
-    try {
-      await axios.post(`${backendURL}/api/punch`, { time: timeToSave });
-      setManualTime('');
-      fetchPunches();
-    } catch (err) {
-      console.error('Error punching in:', err);
-    }
+  const handlePunch = async () => {
+    const time = new Date().toLocaleTimeString();
+    await fetch("/api/punch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ time }),
+    });
+    fetchPunches();
   };
 
   useEffect(() => {
@@ -35,30 +32,23 @@ function App() {
   }, []);
 
   return (
-    <div className="container">
-      <h2>⏰ Punch In App</h2>
-
-      <p><strong>Local Time:</strong> {new Date().toLocaleString()}</p>
-
-      <input
-        type="text"
-        placeholder="Enter time manually (optional)"
-        value={manualTime}
-        onChange={(e) => setManualTime(e.target.value)}
-      />
-
-      <div>
-        <button onClick={punchIn}>Punch In</button>
-      </div>
-
-      <h3>Recent Punches</h3>
-      <ul style={{ textAlign: 'left' }}>
-        {punches.map((p, i) => (
-          <li key={i}>{p.time}</li>
-        ))}
-      </ul>
+    <div className="App">
+      <h1>⏱️ React Punch App</h1>
+      <button onClick={handlePunch}>Punch Time</button>
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <ul>
+          {punches.map((p, i) => (
+            <li key={i}>
+              {p.time} — {p.createdAt}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
 
 export default App;
+
