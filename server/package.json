@@ -1,14 +1,9 @@
 {
-  "name": "punch-server",
+  "name": "react-punch-app",
   "version": "1.0.0",
-  "type": "module",
-  "main": "index.js",
   "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "couchbase": "^4.3.0"
+    "build": "cd client && npm install && npm run build",
+    "start": "cd server && node index.js"
   }
 }
+
