@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import couchbase from "couchbase";
 
-const app = express(); // ✅ Define app FIRST
+const app = express();
 app.use(express.json());
 app.use(cors());
 
@@ -49,19 +49,5 @@ app.get("/api/punches", async (req, res) => {
     res.send([{ time: "Sample Data (DB Query to be extended)" }]);
   } catch (err) {
     console.error(err);
-    res.status(500).send({ error: "Failed to fetch punches" });
-  }
-});
+    res.status(
 
-// ✅ Serve React frontend
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const clientBuildPath = path.join(__dirname, "../client/build");
-
-app.use(express.static(clientBuildPath));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(clientBuildPath, "index.html"));
-});
-
-app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
