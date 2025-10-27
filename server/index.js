@@ -1,12 +1,19 @@
 import express from "express";
 import cors from "cors";
 import couchbase from "couchbase";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
+// ✅ Define port for Render
 const port = process.env.PORT || 3001;
+
+// ✅ Fix __dirname in ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // ✅ Connect to Couchbase
 const connectToCouchbase = async () => {
@@ -25,12 +32,12 @@ const connectToCouchbase = async () => {
   }
 };
 
-const connectionPromise = connectToCouchbase();
+let dbPromise = connectToCouchbase();
 
-// ✅ API to add a punch
+// ✅ POST route — Save a punch
 app.post("/api/punch", async (req, res) => {
   try {
-    const { collection } = await connectionPromise;
+    const { collection } = await dbPromise;
     const punch = {
       time: req.body.time,
       createdAt: new Date().toISOString(),
@@ -39,40 +46,34 @@ app.post("/api/punch", async (req, res) => {
     await collection.upsert(key, punch);
     res.send({ success: true });
   } catch (err) {
-    console.error("Error saving punch:", err);
+    console.error("❌ Error saving punch:", err);
     res.status(500).send({ error: "Failed to save punch" });
   }
 });
 
-// ✅ API to fetch punches (simple sample data for now)
+// ✅ GET route — Fetch all punches
 app.get("/api/punches", async (req, res) => {
   try {
-    // NOTE: Couchbase doesn't have a direct "get all" for key-value collections.
-    // You’d normally query using N1QL, but for demo, we'll just return mock data.
-    res.send([
-      { time: "2025-10-27T09:00:00Z" },
-      { time: "2025-10-27T17:00:00Z" },
-    ]);
+    const { cluster } = await dbPromise;
+    const bucketName = process.env.COUCHBASE_BUCKET;
+
+    const query = `SELECT META().id, time, createdAt FROM \`${bucketName}\``;
+    const result = await cluster.query(query);
+
+    res.send(result.rows);
   } catch (err) {
-    console.error("Error fetching punches:", err);
+    console.error("❌ Error fetching punches:", err);
     res.status(500).send({ error: "Failed to fetch punches" });
   }
 });
 
-import path from "path";
-import { fileURLToPath } from "url";
-
-// ✅ Needed for ES module __dirname equivalent
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// ✅ Serve static files from React build folder
+// ✅ Serve React frontend build
 app.use(express.static(path.join(__dirname, "../client/build")));
-
-// ✅ Handle any route not starting with /api → send React index.html
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../client/build", "index.html"));
 });
+
+// ✅ Start server
 app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
 
 
