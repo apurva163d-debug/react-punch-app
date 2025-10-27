@@ -1,4 +1,3 @@
-// server/index.js
 import express from "express";
 import cors from "cors";
 import path from "path";
@@ -11,7 +10,6 @@ app.use(cors());
 
 const port = process.env.PORT || 3001;
 
-// ---- COUCHBASE CONNECTION ----
 const connectToCouchbase = async () => {
   try {
     const cluster = await couchbase.connect(process.env.COUCHBASE_CONNSTR, {
@@ -30,7 +28,6 @@ const connectToCouchbase = async () => {
 
 let collectionPromise = connectToCouchbase();
 
-// ---- API ENDPOINTS ----
 app.post("/api/punch", async (req, res) => {
   try {
     const collection = await collectionPromise;
@@ -47,26 +44,20 @@ app.post("/api/punch", async (req, res) => {
 app.get("/api/punches", async (req, res) => {
   try {
     const collection = await collectionPromise;
-    const query = `SELECT time, createdAt FROM \`${process.env.COUCHBASE_BUCKET}\` LIMIT 20;`;
-    const result = await collection.scope("_default").query(query);
-    res.send(result.rows);
+    res.send([{ time: "Sample data placeholder" }]);
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: "Failed to fetch punches" });
   }
 });
 
-// ---- SERVE REACT FRONTEND ----
+// Serve React build
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const buildPath = path.join(__dirname, "../client/build");
 
-const buildPath = path.join(__dirname, "../build");
 app.use(express.static(buildPath));
+app.get("*", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
 
-// If no API route matches, serve React
-app.get("*", (req, res) => {
-  res.sendFile(path.join(buildPath, "index.html"));
-});
-
-// ---- START SERVER ----
 app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
+
