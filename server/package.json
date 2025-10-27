@@ -1,12 +1,16 @@
 {
-  "name": "react-punch-app",
+  "name": "react-punch-backend",
   "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "node server/index.js",
-    "build": "cd client && npm install && npm run build"
+    "start": "node index.js"
   },
-  "engines": {
-    "node": "22.x"
+  "dependencies": {
+    "express": "^4.21.1",
+    "cors": "^2.8.5",
+    "couchbase": "^4.4.0"
   }
 }
+
 
