@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
+import couchbase from "couchbase";
 import path from "path";
 import { fileURLToPath } from "url";
-import couchbase from "couchbase";
 
 const app = express();
 app.use(express.json());
@@ -10,6 +10,11 @@ app.use(cors());
 
 const port = process.env.PORT || 3001;
 
+// Required to resolve __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ✅ Connect to Couchbase
 const connectToCouchbase = async () => {
   try {
     const cluster = await couchbase.connect(process.env.COUCHBASE_CONNSTR, {
@@ -28,6 +33,7 @@ const connectToCouchbase = async () => {
 
 let collectionPromise = connectToCouchbase();
 
+// ✅ API Routes
 app.post("/api/punch", async (req, res) => {
   try {
     const collection = await collectionPromise;
@@ -44,20 +50,23 @@ app.post("/api/punch", async (req, res) => {
 app.get("/api/punches", async (req, res) => {
   try {
     const collection = await collectionPromise;
-    res.send([{ time: "Sample data placeholder" }]);
+    res.send([{ time: "Sample Data (DB Query to be extended)" }]);
   } catch (err) {
     console.error(err);
     res.status(500).send({ error: "Failed to fetch punches" });
   }
 });
 
-// Serve React build
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const buildPath = path.join(__dirname, "../client/build");
+// ✅ Serve React build files
+const clientBuildPath = path.join(__dirname, "../client/build");
+app.use(express.static(clientBuildPath));
 
-app.use(express.static(buildPath));
-app.get("*", (req, res) => res.sendFile(path.join(buildPath, "index.html")));
+// ✅ Fallback to index.html for SPA routing
+app.get("*", (req, res) => {
+  res.sendFile(path.join(clientBuildPath, "index.html"));
+});
 
+// ✅ Start server
 app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
+
 
