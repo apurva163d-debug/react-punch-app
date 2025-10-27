@@ -59,6 +59,20 @@ app.get("/api/punches", async (req, res) => {
   }
 });
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+// ✅ Needed for ES module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ✅ Serve static files from React build folder
+app.use(express.static(path.join(__dirname, "../client/build")));
+
+// ✅ Handle any route not starting with /api → send React index.html
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../client/build", "index.html"));
+});
 app.listen(port, () => console.log(`🚀 Server running on port ${port}`));
 
 
